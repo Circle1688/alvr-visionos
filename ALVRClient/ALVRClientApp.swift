@@ -145,18 +145,18 @@ struct ALVRClientApp: App {
             .environmentObject(EventHandler.shared)
             .environmentObject(ALVRClientApp.gStore)
             .fixedSize()
-            .alert(isPresented: $showChangelog) {
-                Alert(
-                    title: Text("ALVR v" + ALVRClientApp.gStore.settings.lastUsedAppVersion),
-                    message: Text(changelogText),
-                    dismissButton: .default(
-                        Text("Dismiss"),
-                        action: {
-                            
-                        }
-                    )
-                )
-            }
+//            .alert(isPresented: $showChangelog) {
+//                Alert(
+//                    title: Text("VR Manager v" + ALVRClientApp.gStore.settings.lastUsedAppVersion),
+//                    message: Text(""),
+//                    dismissButton: .default(
+//                        Text("Dismiss"),
+//                        action: {
+//                            
+//                        }
+//                    )
+//                )
+//            }
         }
         .windowStyle(.plain)
         .windowResizability(.contentSize)

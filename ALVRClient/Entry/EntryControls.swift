@@ -22,23 +22,38 @@ struct EntryControls: View {
     var body: some View {
         @Bindable var model = model
         
-        HStack(spacing: 17) {
-            if eventHandler.connectionState == .connected {
-                Toggle(isOn: $model.isShowingClient) {
-                    Label("Enter", systemImage: "visionpro")
-                        .labelStyle(.titleAndIcon)
-                        .padding(15)
-                }
-            } else {
-                Label("Connecting...", systemImage: "visionpro")
-                    .labelStyle(.titleOnly)
-                    .padding(15)
-            }
-            
-        }
-        .toggleStyle(.button)
-        .buttonStyle(.borderless)
-        .glassBackgroundEffect(in: .rect(cornerRadius: 50))
+//        HStack(spacing: 17) {
+//            if eventHandler.connectionState == .connected {
+////                Toggle(isOn: $model.isShowingClient) {
+////                    Label("Enter", systemImage: "visionpro")
+////                        .labelStyle(.titleAndIcon)
+////                        .padding(15)
+////                }
+//                Label("Enter", systemImage: "visionpro")
+//                    .labelStyle(.titleAndIcon)
+//                    .padding(15)
+//                    .onAppear {
+//                        // 自动执行进入操作
+//                        model.isShowingClient = true
+//                    }
+//            } else {
+//                Label("Connecting...", systemImage: "visionpro")
+//                    .labelStyle(.titleOnly)
+//                    .padding(15)
+//            }
+//            
+//        }
+//        .toggleStyle(.button)
+//        .buttonStyle(.borderless)
+//        .glassBackgroundEffect(in: .rect(cornerRadius: 50))
+        
+        EmptyView()
+            .onChange(of: eventHandler.connectionState) { _, connectionState in
+                            // 当连接状态变为 connected 自动进入
+                            if connectionState == .connected {
+                                model.isShowingClient = true
+                            }
+                        }
 
         //Enable Client
         .onChange(of: model.isShowingClient) { _, isShowing in
@@ -99,4 +114,5 @@ struct EntryControls: View {
         }
 
     }
+    
 }

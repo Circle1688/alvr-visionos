@@ -48,7 +48,9 @@ struct Entry: View {
     func applyStreamHz() {
         VideoHandler.applyRefreshRate(videoFormat: EventHandler.shared.videoFormat)
     }
-
+    
+    @State private var isAnimating = false
+    
     var body: some View {
         VStack {
             VStack {
@@ -76,291 +78,292 @@ struct Entry: View {
             }
             .frame(minHeight: 200)
             
-            TabView {
-                VStack {
-                    Text("Main Settings:")
-                        .font(.system(size: 20, weight: .bold))
-                    Toggle(isOn: $gStore.settings.showHandsOverlaid) {
-                        Text("Show hands overlaid")
-                    }
-                    .toggleStyle(.switch)
-                    
-                    Toggle(isOn: $gStore.settings.disablePersistentSystemOverlays) {
-                        Text("Disable persistent system overlays (palm gesture)")
-                    }
-                    .toggleStyle(.switch)
-                  
-                    Toggle(isOn: $gStore.settings.keepSteamVRCenter) {
-                        Text("Crown Button long-press ignored by SteamVR")
-                    }
-                    .toggleStyle(.switch)
-                    
-                    Toggle(isOn: $gStore.settings.enableDoubleTapForHands) {
-                        Text("Clack controllers together twice while looking at them to switch to hand tracking")
-                    }
-                    .toggleStyle(.switch)
-                    
-                    Toggle(isOn: $gStore.settings.emulatedPinchInteractions) {
-                        Text("Send gaze-pinch interactions as controller inputs")
-                    }
-                    .toggleStyle(.switch)
-                    
-                    HStack {
-                        Text("Stream refresh rate*")
-                        Picker("Stream refresh rate", selection: $gStore.settings.streamFPS) {
-                            if #unavailable(visionOS 2.0) {
-                                ForEach(refreshRatesPre20, id: \.self) {
-                                    Text($0)
-                                }
-                            }
-                            else {
-                                ForEach(refreshRatesPost20, id: \.self) {
-                                    Text($0)
-                                }
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .onChange(of: gStore.settings.streamFPS) {
-                            applyStreamHz()
-                        }
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                    if #unavailable(visionOS 2.0) {
-                        Text("*Higher refresh rates cause skipping when displaying 30P content, or judder while passthrough is active")
-                            .font(.system(size: 10))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    else {
-                        Text("*Higher refresh rates cause skipping when displaying 30P content")
-                            .font(.system(size: 10))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                .frame(minWidth: 450)
-                .padding()
-                .tabItem {
-                    Label("Main Settings", systemImage: "network")
-                }
-                VStack {
-                    Text("Advanced Settings:")
-                        .font(.system(size: 20, weight: .bold))
-                    
-                    Toggle(isOn: $gStore.settings.experimental40ppd) {
-                        Text("RealityKit renderer*")
-                        Text("*Deprecated! May cause juddering and/or nausea!")
-                        .font(.system(size: 10))
-                    }
-                    .toggleStyle(.switch)
-                    
-                    Toggle(isOn: $gStore.settings.chromaKeyEnabled) {
-#if XCODE_BETA_16
-                        if #unavailable(visionOS 2.0) {
-                            Text("Enable Chroma Keyed Passthrough*")
-                            Text("*Only works with 40PPD renderer")
-                            .font(.system(size: 10))
-                        }
-                        else {
-                            Text("Enable Chroma Keyed Passthrough")
-                        }
-#else
-                        Text("Enable Chroma Keyed Passthrough*")
-                        Text("*Only works with 40PPD renderer")
-                            .font(.system(size: 10))
-#endif
-                    }
-                    .toggleStyle(.switch)
-                    .onChange(of: gStore.settings.chromaKeyEnabled) {
-                        saveAction()
-                    }
-                    
-                    ColorPicker("Chroma Key Color", selection: $chromaKeyColor)
-                    .onChange(of: chromaKeyColor) {
-                        gStore.settings.chromaKeyColorR = Float((chromaKeyColor.cgColor?.components ?? [0.0, 1.0, 0.0])[0])
-                        gStore.settings.chromaKeyColorG = Float((chromaKeyColor.cgColor?.components ?? [0.0, 1.0, 0.0])[1])
-                        gStore.settings.chromaKeyColorB = Float((chromaKeyColor.cgColor?.components ?? [0.0, 1.0, 0.0])[2])
-                        saveAction()
-                   }
-                   
-                   Text("Chroma Blend Distance Min/Max").frame(maxWidth: .infinity, alignment: .leading)
-                   HStack {
-                       Slider(value: $gStore.settings.chromaKeyDistRangeMin,
-                              in: 0...chromaRangeMaximum,
-                              step: 0.01) {
-                           Text("Chroma Blend Distance Min")
-                       }
-                       .onChange(of: gStore.settings.chromaKeyDistRangeMin) {
-                           applyRangeSettings()
-                           
-                       }
-                       TextField("Chroma Blend Distance Min", value: $gStore.settings.chromaKeyDistRangeMin, formatter: chromaFormatter)
-                       .textFieldStyle(RoundedBorderTextFieldStyle())
-                       .onChange(of: gStore.settings.chromaKeyDistRangeMin) {
-                           applyRangeSettings()
-                       }
-                       .frame(width: 100)
-                   }
-                   HStack {
-                       Slider(value: $gStore.settings.chromaKeyDistRangeMax,
-                              in: 0.001...1,
-                              step: 0.01) {
-                           Text("Chroma Blend Distance Min")
-                       }
-                       .onChange(of: gStore.settings.chromaKeyDistRangeMax) {
-                           applyRangeSettings()
-                       }
-                       TextField("Chroma Blend Distance Max", value: $gStore.settings.chromaKeyDistRangeMax, formatter: chromaFormatter)
-                       .textFieldStyle(RoundedBorderTextFieldStyle())
-                       .onChange(of: gStore.settings.chromaKeyDistRangeMax) {
-                           applyRangeSettings()
-                       }
-                       .frame(width: 100)
-                   }
-#if IS_ALVR_TESTFLIGHT
-                   Toggle(isOn: $gStore.settings.forceMipmapEyeTracking) {
-                        Text("Force visionOS 1.x eye tracking")
-                        Text("*Eye tracking requires Experimental Renderer. Moves faster, but requires obstructing the left eye FoV.")
-                            .font(.system(size: 10))
-                        Text("Long click View Recording in the Control Center to select ALVR broadcaster.")
-                            .font(.system(size: 10))
-                    }
-                    .toggleStyle(.switch)
-#endif
-                    Toggle(isOn: $gStore.settings.enablePersonaFaceTracking) {
-                        Text("Use Spatial Persona for Face Tracking (Beta)")
-                        Text("*Currently requires RealityKit renderer")
-                            .font(.system(size: 10))
-                    }
-                    .toggleStyle(.switch)
-                    
-                    Toggle(isOn: $gStore.settings.showFaceTrackingDebug) {
-                        Text("Show Face Tracking Debug View (Beta)")
-                        Text("*Currently requires RealityKit renderer")
-                            .font(.system(size: 10))
-                    }
-                    .toggleStyle(.switch)
+//            TabView {
+//                VStack {
+//                    Text("Main Settings:")
+//                        .font(.system(size: 20, weight: .bold))
+//                    Toggle(isOn: $gStore.settings.showHandsOverlaid) {
+//                        Text("Show hands overlaid")
+//                    }
+//                    .toggleStyle(.switch)
+//                    
+//                    Toggle(isOn: $gStore.settings.disablePersistentSystemOverlays) {
+//                        Text("Disable persistent system overlays (palm gesture)")
+//                    }
+//                    .toggleStyle(.switch)
+//                  
+//                    Toggle(isOn: $gStore.settings.keepSteamVRCenter) {
+//                        Text("Crown Button long-press ignored by SteamVR")
+//                    }
+//                    .toggleStyle(.switch)
+//                    
+//                    Toggle(isOn: $gStore.settings.enableDoubleTapForHands) {
+//                        Text("Clack controllers together twice while looking at them to switch to hand tracking")
+//                    }
+//                    .toggleStyle(.switch)
+//                    
+//                    Toggle(isOn: $gStore.settings.emulatedPinchInteractions) {
+//                        Text("Send gaze-pinch interactions as controller inputs")
+//                    }
+//                    .toggleStyle(.switch)
+//                    
+//                    HStack {
+//                        Text("Stream refresh rate*")
+//                        Picker("Stream refresh rate", selection: $gStore.settings.streamFPS) {
+//                            if #unavailable(visionOS 2.0) {
+//                                ForEach(refreshRatesPre20, id: \.self) {
+//                                    Text($0)
+//                                }
+//                            }
+//                            else {
+//                                ForEach(refreshRatesPost20, id: \.self) {
+//                                    Text($0)
+//                                }
+//                            }
+//                        }
+//                        .pickerStyle(.menu)
+//                        .onChange(of: gStore.settings.streamFPS) {
+//                            applyStreamHz()
+//                        }
+//                        .frame(maxWidth: .infinity, alignment: .trailing)
+//                    }
+//                    if #unavailable(visionOS 2.0) {
+//                        Text("*Higher refresh rates cause skipping when displaying 30P content, or judder while passthrough is active")
+//                            .font(.system(size: 10))
+//                            .frame(maxWidth: .infinity, alignment: .leading)
+//                    }
+//                    else {
+//                        Text("*Higher refresh rates cause skipping when displaying 30P content")
+//                            .font(.system(size: 10))
+//                            .frame(maxWidth: .infinity, alignment: .leading)
+//                    }
+//                }
+//                .frame(minWidth: 450)
+//                .padding()
+//                .tabItem {
+//                    Label("Main Settings", systemImage: "network")
+//                }
+//                VStack {
+//                    Text("Advanced Settings:")
+//                        .font(.system(size: 20, weight: .bold))
+//                    
+//                    Toggle(isOn: $gStore.settings.experimental40ppd) {
+//                        Text("RealityKit renderer*")
+//                        Text("*Deprecated! May cause juddering and/or nausea!")
+//                        .font(.system(size: 10))
+//                    }
+//                    .toggleStyle(.switch)
+//                    
+//                    Toggle(isOn: $gStore.settings.chromaKeyEnabled) {
+//#if XCODE_BETA_16
+//                        if #unavailable(visionOS 2.0) {
+//                            Text("Enable Chroma Keyed Passthrough*")
+//                            Text("*Only works with 40PPD renderer")
+//                            .font(.system(size: 10))
+//                        }
+//                        else {
+//                            Text("Enable Chroma Keyed Passthrough")
+//                        }
+//#else
+//                        Text("Enable Chroma Keyed Passthrough*")
+//                        Text("*Only works with 40PPD renderer")
+//                            .font(.system(size: 10))
+//#endif
+//                    }
+//                    .toggleStyle(.switch)
+//                    .onChange(of: gStore.settings.chromaKeyEnabled) {
+//                        saveAction()
+//                    }
+//                    
+//                    ColorPicker("Chroma Key Color", selection: $chromaKeyColor)
+//                    .onChange(of: chromaKeyColor) {
+//                        gStore.settings.chromaKeyColorR = Float((chromaKeyColor.cgColor?.components ?? [0.0, 1.0, 0.0])[0])
+//                        gStore.settings.chromaKeyColorG = Float((chromaKeyColor.cgColor?.components ?? [0.0, 1.0, 0.0])[1])
+//                        gStore.settings.chromaKeyColorB = Float((chromaKeyColor.cgColor?.components ?? [0.0, 1.0, 0.0])[2])
+//                        saveAction()
+//                   }
+//                   
+//                   Text("Chroma Blend Distance Min/Max").frame(maxWidth: .infinity, alignment: .leading)
+//                   HStack {
+//                       Slider(value: $gStore.settings.chromaKeyDistRangeMin,
+//                              in: 0...chromaRangeMaximum,
+//                              step: 0.01) {
+//                           Text("Chroma Blend Distance Min")
+//                       }
+//                       .onChange(of: gStore.settings.chromaKeyDistRangeMin) {
+//                           applyRangeSettings()
+//                           
+//                       }
+//                       TextField("Chroma Blend Distance Min", value: $gStore.settings.chromaKeyDistRangeMin, formatter: chromaFormatter)
+//                       .textFieldStyle(RoundedBorderTextFieldStyle())
+//                       .onChange(of: gStore.settings.chromaKeyDistRangeMin) {
+//                           applyRangeSettings()
+//                       }
+//                       .frame(width: 100)
+//                   }
+//                   HStack {
+//                       Slider(value: $gStore.settings.chromaKeyDistRangeMax,
+//                              in: 0.001...1,
+//                              step: 0.01) {
+//                           Text("Chroma Blend Distance Min")
+//                       }
+//                       .onChange(of: gStore.settings.chromaKeyDistRangeMax) {
+//                           applyRangeSettings()
+//                       }
+//                       TextField("Chroma Blend Distance Max", value: $gStore.settings.chromaKeyDistRangeMax, formatter: chromaFormatter)
+//                       .textFieldStyle(RoundedBorderTextFieldStyle())
+//                       .onChange(of: gStore.settings.chromaKeyDistRangeMax) {
+//                           applyRangeSettings()
+//                       }
+//                       .frame(width: 100)
+//                   }
+//#if IS_ALVR_TESTFLIGHT
+//                   Toggle(isOn: $gStore.settings.forceMipmapEyeTracking) {
+//                        Text("Force visionOS 1.x eye tracking")
+//                        Text("*Eye tracking requires Experimental Renderer. Moves faster, but requires obstructing the left eye FoV.")
+//                            .font(.system(size: 10))
+//                        Text("Long click View Recording in the Control Center to select ALVR broadcaster.")
+//                            .font(.system(size: 10))
+//                    }
+//                    .toggleStyle(.switch)
+//#endif
+//                    Toggle(isOn: $gStore.settings.enablePersonaFaceTracking) {
+//                        Text("Use Spatial Persona for Face Tracking (Beta)")
+//                        Text("*Currently requires RealityKit renderer")
+//                            .font(.system(size: 10))
+//                    }
+//                    .toggleStyle(.switch)
+//                    
+//                    Toggle(isOn: $gStore.settings.showFaceTrackingDebug) {
+//                        Text("Show Face Tracking Debug View (Beta)")
+//                        Text("*Currently requires RealityKit renderer")
+//                            .font(.system(size: 10))
+//                    }
+//                    .toggleStyle(.switch)
+//
+//                    Toggle(isOn: $gStore.settings.enableProgressive) {
+//                        Text("Enable progressive mode (use Digital Crown)")
+//                        Text("*Currently requires RealityKit renderer")
+//                            .font(.system(size: 10))
+//                    }
+//                    .toggleStyle(.switch)
+//                    
+//                    Toggle(isOn: $gStore.settings.dismissWindowOnEnter) {
+//                        Text("Dismiss this window on entry")
+//                    }
+//                    .toggleStyle(.switch)
+//                    
+//                    Text("FoV Scale").frame(maxWidth: .infinity, alignment: .leading)
+//                    HStack {
+//                       Slider(value: $gStore.settings.fovRenderScale,
+//                              in: 0.2...1.6,
+//                              step: 0.1) {
+//                           Text("FoV Scale")
+//                       }
+//                       .onChange(of: gStore.settings.fovRenderScale) {
+//                           applyRangeSettings()
+//                       }
+//                       TextField("FoV Scale", value: $gStore.settings.fovRenderScale, formatter: chromaFormatter)
+//                       .textFieldStyle(RoundedBorderTextFieldStyle())
+//                       .onChange(of: gStore.settings.fovRenderScale) {
+//                           applyRangeSettings()
+//                       }
+//                       .frame(width: 100)
+//                    }
+//                    Text("Increase FoV for timewarp comfort, or sacrifice FoV for sharpness")
+//                        .font(.system(size: 10))
+//                        .frame(maxWidth: .infinity, alignment: .leading)
+//                    
+//                    Toggle(isOn: $gStore.settings.targetHandsAtRoundtripLatency) {
+//                        Text("Target hand prediction at round-trip latency (may cause jittering)")
+//                    }
+//                    .toggleStyle(.switch)
+//
+//                    Toggle(isOn: Binding(
+//                        get: { gStore.settings.chaperoneDistanceCm > 0 },
+//                        set: { isOn in
+//                            gStore.settings.chaperoneDistanceCm = isOn ? 30 : 0
+//                            saveAction()
+//                        }
+//                    )) {
+//                        Text("Proximity Chaperone")
+//                        Text("Highlights nearby objects when you get too close.")
+//                            .font(.system(size: 10))
+//                    }
+//                    .toggleStyle(.switch)
+//
+//                    if gStore.settings.chaperoneDistanceCm > 0 {
+//                        Text("Chaperone Distance").frame(maxWidth: .infinity, alignment: .leading)
+//                        HStack {
+//                           Slider(value: Binding(
+//                               get: { Double(gStore.settings.chaperoneDistanceCm) },
+//                               set: { newValue in
+//                                   let rounded = Int(newValue.rounded())
+//                                   // Snap invalid values: if between 1-29, snap to 30
+//                                   if rounded > 0 && rounded < 30 {
+//                                       gStore.settings.chaperoneDistanceCm = 30
+//                                   } else {
+//                                       gStore.settings.chaperoneDistanceCm = rounded
+//                                   }
+//                               }
+//                           ),
+//                           in: 30...60,
+//                           step: 5) {
+//                               Text("Chaperone Distance")
+//                           }
+//                           .onChange(of: gStore.settings.chaperoneDistanceCm) {
+//                               saveAction()
+//                           }
+//
+//                           Text("\(gStore.settings.chaperoneDistanceCm) cm")
+//                               .frame(width: 60, alignment: .trailing)
+//                               .foregroundColor(.secondary)
+//                        }
+//                    }
+//                }
+//                .frame(minWidth: 450)
+//                .padding()
+//                .tabItem {
+//                    Label("Advanced Settings", systemImage: "gearshape")
+//                }
 
-                    Toggle(isOn: $gStore.settings.enableProgressive) {
-                        Text("Enable progressive mode (use Digital Crown)")
-                        Text("*Currently requires RealityKit renderer")
-                            .font(.system(size: 10))
-                    }
-                    .toggleStyle(.switch)
-                    
-                    Toggle(isOn: $gStore.settings.dismissWindowOnEnter) {
-                        Text("Dismiss this window on entry")
-                    }
-                    .toggleStyle(.switch)
-                    
-                    Text("FoV Scale").frame(maxWidth: .infinity, alignment: .leading)
-                    HStack {
-                       Slider(value: $gStore.settings.fovRenderScale,
-                              in: 0.2...1.6,
-                              step: 0.1) {
-                           Text("FoV Scale")
-                       }
-                       .onChange(of: gStore.settings.fovRenderScale) {
-                           applyRangeSettings()
-                       }
-                       TextField("FoV Scale", value: $gStore.settings.fovRenderScale, formatter: chromaFormatter)
-                       .textFieldStyle(RoundedBorderTextFieldStyle())
-                       .onChange(of: gStore.settings.fovRenderScale) {
-                           applyRangeSettings()
-                       }
-                       .frame(width: 100)
-                    }
-                    Text("Increase FoV for timewarp comfort, or sacrifice FoV for sharpness")
-                        .font(.system(size: 10))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    Toggle(isOn: $gStore.settings.targetHandsAtRoundtripLatency) {
-                        Text("Target hand prediction at round-trip latency (may cause jittering)")
-                    }
-                    .toggleStyle(.switch)
-
-                    Toggle(isOn: Binding(
-                        get: { gStore.settings.chaperoneDistanceCm > 0 },
-                        set: { isOn in
-                            gStore.settings.chaperoneDistanceCm = isOn ? 30 : 0
-                            saveAction()
-                        }
-                    )) {
-                        Text("Proximity Chaperone")
-                        Text("Highlights nearby objects when you get too close.")
-                            .font(.system(size: 10))
-                    }
-                    .toggleStyle(.switch)
-
-                    if gStore.settings.chaperoneDistanceCm > 0 {
-                        Text("Chaperone Distance").frame(maxWidth: .infinity, alignment: .leading)
-                        HStack {
-                           Slider(value: Binding(
-                               get: { Double(gStore.settings.chaperoneDistanceCm) },
-                               set: { newValue in
-                                   let rounded = Int(newValue.rounded())
-                                   // Snap invalid values: if between 1-29, snap to 30
-                                   if rounded > 0 && rounded < 30 {
-                                       gStore.settings.chaperoneDistanceCm = 30
-                                   } else {
-                                       gStore.settings.chaperoneDistanceCm = rounded
-                                   }
-                               }
-                           ),
-                           in: 30...60,
-                           step: 5) {
-                               Text("Chaperone Distance")
-                           }
-                           .onChange(of: gStore.settings.chaperoneDistanceCm) {
-                               saveAction()
-                           }
-
-                           Text("\(gStore.settings.chaperoneDistanceCm) cm")
-                               .frame(width: 60, alignment: .trailing)
-                               .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .frame(minWidth: 450)
-                .padding()
-                .tabItem {
-                    Label("Advanced Settings", systemImage: "gearshape")
-                }
-
-                VStack {
-                    Text("Help and Information:")
-                        .font(.system(size: 20, weight: .bold))
-                    Text("Need help setting up your PC for ALVR? Check out our getting started guide at:")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    Link("https://github.com/alvr-org/ALVR/wiki/Installation-guide", destination: URL(string: "https://github.com/alvr-org/ALVR/wiki/Installation-guide")!)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    //.hoverEffect()
-                    Text("Having trouble connecting? Framerate issues or stuttering? Check out our troubleshooting guide at:")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    Link("https://github.com/alvr-org/ALVR/wiki/Troubleshooting", destination: URL(string: "https://github.com/alvr-org/ALVR/wiki/Troubleshooting")!)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    Text("We also have Discord and Matrix chats for more complex troubleshooting and development discussion:")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    Link("https://discord.gg/ALVR", destination: URL(string: "https://discord.gg/ALVR")!)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    Link("https://matrix.to/#/#alvr:ckie.dev?via=ckie.dev", destination: URL(string: "https://matrix.to/#/#alvr:ckie.dev?via=ckie.dev")!)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    Text("\n\nALVR is licensed under the MIT license.\nCopyright (c) 2018-2019 polygraphene\nCopyright (c) 2020-2024 alvr-org")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    Link("Click here for full license information", destination: URL(string: "https://raw.githubusercontent.com/alvr-org/ALVR/master/LICENSE")!)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(width: 450)
-                .padding()
-                .tabItem {
-                    Label("Help and Information", systemImage: "questionmark.circle")
-                }
-            }
-            .frame(minHeight: 600)
-            .padding(.horizontal)
+//                VStack {
+//                    Text("Help and Information:")
+//                        .font(.system(size: 20, weight: .bold))
+//                    Text("Need help setting up your PC for ALVR? Check out our getting started guide at:")
+//                    .frame(maxWidth: .infinity, alignment: .leading)
+//                    Link("https://github.com/alvr-org/ALVR/wiki/Installation-guide", destination: URL(string: "https://github.com/alvr-org/ALVR/wiki/Installation-guide")!)
+//                    .frame(maxWidth: .infinity, alignment: .leading)
+//                    //.hoverEffect()
+//                    Text("Having trouble connecting? Framerate issues or stuttering? Check out our troubleshooting guide at:")
+//                    .frame(maxWidth: .infinity, alignment: .leading)
+//                    Link("https://github.com/alvr-org/ALVR/wiki/Troubleshooting", destination: URL(string: "https://github.com/alvr-org/ALVR/wiki/Troubleshooting")!)
+//                    .frame(maxWidth: .infinity, alignment: .leading)
+//                    
+//                    Text("We also have Discord and Matrix chats for more complex troubleshooting and development discussion:")
+//                    .frame(maxWidth: .infinity, alignment: .leading)
+//                    Link("https://discord.gg/ALVR", destination: URL(string: "https://discord.gg/ALVR")!)
+//                    .frame(maxWidth: .infinity, alignment: .leading)
+//                    Link("https://matrix.to/#/#alvr:ckie.dev?via=ckie.dev", destination: URL(string: "https://matrix.to/#/#alvr:ckie.dev?via=ckie.dev")!)
+//                    .frame(maxWidth: .infinity, alignment: .leading)
+//                    
+//                    Text("\n\nALVR is licensed under the MIT license.\nCopyright (c) 2018-2019 polygraphene\nCopyright (c) 2020-2024 alvr-org")
+//                    .frame(maxWidth: .infinity, alignment: .leading)
+//                    Link("Click here for full license information", destination: URL(string: "https://raw.githubusercontent.com/alvr-org/ALVR/master/LICENSE")!)
+//                    .frame(maxWidth: .infinity, alignment: .leading)
+//                }
+//                .frame(width: 450)
+//                .padding()
+//                .tabItem {
+//                    Label("Help and Information", systemImage: "questionmark.circle")
+//                }
+//            }
+//            .frame(minHeight: 600)
+//            .padding(.horizontal)
+            
             
             VStack {
-                Text("Connection Information:")
+                Text("Information")
                     .font(.system(size: 20, weight: .bold))
                 
                 if eventHandler.hostname != "" && eventHandler.IP != "" {
@@ -370,19 +373,19 @@ struct Entry: View {
                     ]
 
                     LazyVGrid(columns: columns) {
-                        Text("hostname:")
+                        Text("Hostname:")
                         Text(eventHandler.hostname)
-                        Text("IP:")
+                        Text("IP address:")
                         Text(eventHandler.IP)
-                        Text("Client Protocol:")
-                        Text(eventHandler.getMdnsProtocolId())
-                        Text("Streamer Version:")
-                        if eventHandler.hostAlvrVersion != "" {
-                            Text(eventHandler.hostAlvrVersion)
-                        }
-                        else {
-                            Text("Disconnected")
-                        }
+//                        Text("Client Protocol:")
+//                        Text(eventHandler.getMdnsProtocolId())
+//                        Text("Streamer Version:")
+//                        if eventHandler.hostAlvrVersion != "" {
+//                            Text(eventHandler.hostAlvrVersion)
+//                        }
+//                        else {
+//                            Text("Disconnected")
+//                        }
                         Text("")
                         Text("")
                     }
@@ -391,6 +394,37 @@ struct Entry: View {
                 }
             }
             .frame(minHeight: 170)
+            
+            // 加载文本
+            VStack {
+                Text("Connecting...")
+                    .font(.system(size: 35, weight: .bold))
+            }
+            .frame( maxWidth: .infinity, minHeight: 50, maxHeight: 50, alignment: .top)
+            
+            // 加载指示器
+            Circle()
+                        .trim(from: 0, to: 0.7)
+                        .stroke(Color.white, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .frame(width: 40, height: 40)
+                        .rotationEffect(Angle(degrees: isAnimating ? 360 : 0))
+                        .animation(
+                            Animation.linear(duration: 1)
+                                .repeatForever(autoreverses: false),
+                            value: isAnimating
+                        )
+                        .onAppear {
+                            isAnimating = true
+                        }
+            
+            // 增加公司名
+            VStack {
+                Text("")
+                    .font(.system(size: 20))
+            }
+            .frame( maxWidth: .infinity, minHeight: 50, maxHeight: 50, alignment: .bottom)
+            .padding(.bottom)
+            
         }
         .frame(minWidth: 650, maxWidth: 650)
         .glassBackgroundEffect()
