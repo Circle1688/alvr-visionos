@@ -61,20 +61,20 @@ struct Entry: View {
                 .frame(maxWidth: .infinity, maxHeight: 150)
                 .padding(.top)
                 
-                if eventHandler.alvrVersion != "" {
-                    Text(eventHandler.alvrVersion)
-                        .font(.system(size: 20, weight: .bold))
-                }
-                else {
-                    Text("Loading settings...")
-                        .font(.system(size: 20, weight: .bold))
-                }
+//                if eventHandler.alvrVersion != "" {
+//                    Text(eventHandler.alvrVersion)
+//                        .font(.system(size: 20, weight: .bold))
+//                }
+//                else {
+//                    Text("Loading settings...")
+//                        .font(.system(size: 20, weight: .bold))
+//                }
                 
-                VStack {
-                    Text(eventHandler.connectionFlavorText)
-                        .font(.system(size: 15))
-                }
-                .frame( maxWidth: .infinity, minHeight: 50, maxHeight: 50, alignment: .top)
+//                VStack {
+//                    Text(eventHandler.connectionFlavorText)
+//                        .font(.system(size: 15))
+//                }
+//                .frame( maxWidth: .infinity, minHeight: 50, maxHeight: 50, alignment: .top)
             }
             .frame(minHeight: 200)
             
@@ -363,8 +363,8 @@ struct Entry: View {
             
             
             VStack {
-                Text("Information")
-                    .font(.system(size: 20, weight: .bold))
+//                Text("Information")
+//                    .font(.system(size: 20, weight: .bold))
                 
                 if eventHandler.hostname != "" && eventHandler.IP != "" {
                     let columns = [
@@ -373,8 +373,8 @@ struct Entry: View {
                     ]
 
                     LazyVGrid(columns: columns) {
-                        Text("Hostname:")
-                        Text(eventHandler.hostname)
+//                        Text("Hostname:")
+//                        Text(eventHandler.hostname)
                         Text("IP address:")
                         Text(eventHandler.IP)
 //                        Text("Client Protocol:")
