@@ -59,7 +59,14 @@ struct EntryControls: View {
         .onChange(of: model.isShowingClient) { _, isShowing in
             Task {
                 if isShowing {
-
+//                    // 硬编码
+//                    gStore.settings.disablePersistentSystemOverlays = true
+//                    //gStore.settings.keepSteamVRCenter = true
+                    gStore.settings.chromaKeyEnabled = true
+                    gStore.settings.fovRenderScale = 1.3
+//                    gStore.settings.targetHandsAtRoundtripLatency = true
+//                    gStore.settings.experimental40ppd = true
+                    
                     saveAction()
                     print("Opening Immersive Space")
                     if gStore.settings.experimental40ppd {

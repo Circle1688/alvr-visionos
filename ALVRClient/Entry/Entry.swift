@@ -25,6 +25,8 @@ struct Entry: View {
     
     @State private var chromaRangeMaximum: Float = 1.0
     func applyRangeSettings() {
+        
+        
         if gStore.settings.chromaKeyDistRangeMax < 0.001 {
             gStore.settings.chromaKeyDistRangeMax = 0.001
         }
@@ -42,6 +44,7 @@ struct Entry: View {
             gStore.settings.chromaKeyDistRangeMin = gStore.settings.chromaKeyDistRangeMax - 0.001
         }
         chromaRangeMaximum = gStore.settings.chromaKeyDistRangeMax
+        
         saveAction()
     }
     
